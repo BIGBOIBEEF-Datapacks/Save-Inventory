@@ -20,15 +20,15 @@ import java.util.*;
 
 public class SavedInventories {
 
-    private static final Map<UUID, HashMap<String, HashMap<Integer, ItemStack>>> savedInventories = new HashMap<>();
+    private static final Map<String, HashMap<Integer, ItemStack>> savedInventories = new HashMap<>();
     private static final Gson GSON = new GsonBuilder().registerTypeAdapter(ItemStack.class, new ItemStackAdapter()).setPrettyPrinting().create();
     private static final Path SAVE_FILE = Paths.get("saved_inventories.json");
 
     public static void loadData() {
         if (Files.exists(SAVE_FILE)) {
             try (Reader reader = Files.newBufferedReader(SAVE_FILE)) {
-                Type type = new TypeToken<Map<UUID, HashMap<String, HashMap<Integer, ItemStack>>>>() {}.getType();
-                Map<UUID, HashMap<String, HashMap<Integer, ItemStack>>> loadedData = GSON.fromJson(reader, type);
+                Type type = new TypeToken<HashMap<String, HashMap<Integer, ItemStack>>>() {}.getType();
+                HashMap<String, HashMap<Integer, ItemStack>> loadedData = GSON.fromJson(reader, type);
                 if (loadedData != null) {
                     savedInventories.clear();
                     savedInventories.putAll(loadedData);
@@ -48,11 +48,6 @@ public class SavedInventories {
     }
 
     public static void addInventory(ServerPlayerEntity player, String invName) {
-        HashMap<String, HashMap<Integer, ItemStack>> map = savedInventories.get(player.getUuid());
-        if (map == null) {
-            map = new HashMap<>();
-        }
-
         HashMap<Integer, ItemStack> items = new HashMap<>();
         Inventory inv = player.getInventory();
         for (int i = 0; i < inv.size(); i++) {
@@ -60,8 +55,7 @@ public class SavedInventories {
             items.put(i, stack != null ? stack.copy() : ItemStack.EMPTY);
         }
 
-        map.put(invName, items);
-        savedInventories.put(player.getUuid(), map);
+        savedInventories.put(invName, items);
         saveData();
 
         player.sendMessage(Text.literal("You have saved your inventory as ")
@@ -70,7 +64,7 @@ public class SavedInventories {
     }
 
     public static void removeInventory(ServerPlayerEntity player, String invName) {
-        HashMap<String, HashMap<Integer, ItemStack>> map = savedInventories.get(player.getUuid());
+        Map<String, HashMap<Integer, ItemStack>> map = savedInventories;
         if (map == null || !map.containsKey(invName)) {
             player.sendMessage(Text.literal("You do not have an inventory called ")
                     .styled(style -> style.withColor(Formatting.RED))
@@ -85,11 +79,9 @@ public class SavedInventories {
     }
 
     public static void loadInventory(ServerPlayerEntity player, String invName) {
-        HashMap<String, HashMap<Integer, ItemStack>> map = savedInventories.get(player.getUuid());
+        Map<String, HashMap<Integer, ItemStack>> map = savedInventories;
         if (map == null || !map.containsKey(invName)) {
-            player.sendMessage(Text.literal("You do not have an inventory called ")
-                    .styled(style -> style.withColor(Formatting.RED))
-                    .append(Text.literal(invName).styled(style -> style.withColor(Formatting.AQUA))));
+            player.sendMessage(Text.literal("You do not have an inventory called ").styled(style -> style.withColor(Formatting.RED)).append(Text.literal(invName).styled(style -> style.withColor(Formatting.AQUA))));
             return;
         }
 
@@ -111,7 +103,7 @@ public class SavedInventories {
     }
 
     public static void listInventories(ServerPlayerEntity player) {
-        HashMap<String, HashMap<Integer, ItemStack>> map = savedInventories.get(player.getUuid());
+        Map<String, HashMap<Integer, ItemStack>> map = savedInventories;
         if (map == null || map.isEmpty()) {
             player.sendMessage(Text.literal("You do not have any saved inventories.")
                     .styled(style -> style.withColor(Formatting.RED)));
@@ -134,7 +126,7 @@ public class SavedInventories {
     }
 
     public static Set<String> getInventories(ServerPlayerEntity player) {
-        HashMap<String, HashMap<Integer, ItemStack>> map = savedInventories.get(player.getUuid());
+        Map<String, HashMap<Integer, ItemStack>> map = savedInventories;
         return map != null ? map.keySet() : Collections.emptySet();
     }
 }

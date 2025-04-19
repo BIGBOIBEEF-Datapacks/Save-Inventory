@@ -52,7 +52,6 @@ public class SaveInventory {
                                 .suggests((context, builder) -> {
                                     for (String name : SavedInventories.getInventories(context.getSource().getPlayer())) {
                                         builder.suggest(name);
-                                        LOGGER.info("Suggest: " + name);
                                     }
                                     return builder.buildFuture();
                                 })
