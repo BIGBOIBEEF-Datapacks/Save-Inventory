@@ -11,8 +11,8 @@ base {
 }
 
 repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+	maven { url "https://maven.fabricmc.net/" }
+	mavenCentral()
 }
 
 fabricApi {
@@ -24,11 +24,12 @@ fabricApi {
 dependencies {
 	// To change the versions, see the gradle.properties file
 	minecraft "net.minecraft:minecraft:${project.minecraft_version}"
-	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	// Fabric API (optional but recommended)
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+		mappings "net.fabricmc:yarn:1.21+build.1:v2"
+
 }
 
 processResources {
