@@ -1,8 +1,9 @@
-package com.bigboibeef.treechopper.PlayerData;
+package com.bigboibeef.saveinventory.PlayerData;
 
 import com.google.gson.*;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
@@ -28,7 +29,7 @@ public class ItemStackAdapter implements JsonSerializer<ItemStack>, JsonDeserial
         int damage = json.has("damage") ? json.get("damage").getAsInt() : 0;
 
         Item item = Registries.ITEM.get(Identifier.of(itemId));
-        if (item == null) {
+        if (item == Items.AIR && !itemId.equals("minecraft:air")) {
             throw new JsonParseException("Unknown item: " + itemId);
         }
 
