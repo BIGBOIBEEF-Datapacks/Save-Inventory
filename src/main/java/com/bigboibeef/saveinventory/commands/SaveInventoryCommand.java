@@ -7,8 +7,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.minecraft.client.network.ClientPlayerEntity;
 
-import static com.bigboibeef.saveinventory.SaveInventory.LOGGER;
-import static com.bigboibeef.saveinventory.SaveInventory.getPlayer;
+import static com.bigboibeef.saveinventory.SaveInventory.*;
 
 public class SaveInventoryCommand {
     public static void register() {
@@ -19,7 +18,7 @@ public class SaveInventoryCommand {
                                     .suggests((context, builder) -> {
                                         ClientPlayerEntity player = getPlayer();
                                         if (player != null) {
-                                            for (String name : SavedInventories.getInventories(player)) {
+                                            for (String name : SavedInventories.getInventories()) {
                                                 builder.suggest(name);
                                             }
                                         }
@@ -29,7 +28,7 @@ public class SaveInventoryCommand {
                                         ClientPlayerEntity player = getPlayer();
                                         String name = StringArgumentType.getString(context, "name");
                                         if (player != null && name != null) {
-                                            SavedInventories.loadInventory(player, name);
+                                            SavedInventories.loadInventory(name);
                                             LOGGER.info("Loaded inventory: " + name);
                                         }
                                         return Command.SINGLE_SUCCESS;
@@ -54,7 +53,7 @@ public class SaveInventoryCommand {
                                     .suggests((context, builder) -> {
                                         ClientPlayerEntity player = getPlayer();
                                         if (player != null) {
-                                            for (String name : SavedInventories.getInventories(player)) {
+                                            for (String name : SavedInventories.getInventories()) {
                                                 builder.suggest(name);
                                             }
                                         }

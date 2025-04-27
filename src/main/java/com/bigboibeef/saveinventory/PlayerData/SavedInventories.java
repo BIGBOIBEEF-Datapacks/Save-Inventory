@@ -1,18 +1,22 @@
 package com.bigboibeef.saveinventory.PlayerData;
 
+import com.bigboibeef.saveinventory.SaveInventory;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
+import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket;
+import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.slot.Slot;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.collection.DefaultedList;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -23,10 +27,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
-import static com.mojang.text2speech.Narrator.LOGGER;
-
 public class SavedInventories {
-
     private static final Map<String, HashMap<Integer, ItemStack>> savedInventories = new HashMap<>();
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(ItemStack.class, new ItemStackAdapter())
@@ -38,10 +39,10 @@ public class SavedInventories {
         if (Files.exists(SAVE_FILE)) {
             try (Reader reader = Files.newBufferedReader(SAVE_FILE)) {
                 Type type = new TypeToken<HashMap<String, HashMap<Integer, ItemStack>>>() {}.getType();
-                HashMap<String, HashMap<Integer, ItemStack>> loadedData = GSON.fromJson(reader, type);
-                if (loadedData != null) {
+                HashMap<String, HashMap<Integer, ItemStack>> loaded = GSON.fromJson(reader, type);
+                if (loaded != null) {
                     savedInventories.clear();
-                    savedInventories.putAll(loadedData);
+                    savedInventories.putAll(loaded);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -59,123 +60,146 @@ public class SavedInventories {
 
     public static void addInventory(ClientPlayerEntity player, String invName) {
         if (player == null) return;
-
         HashMap<Integer, ItemStack> items = new HashMap<>();
-        DefaultedList<ItemStack> playerItems = player.getInventory().main;
-
-        for (int i = 0; i < playerItems.size(); i++) {
-            ItemStack stack = playerItems.get(i);
-            items.put(i, stack != null ? stack.copy() : ItemStack.EMPTY);
-        }
-
-        DefaultedList<ItemStack> playerArmor = player.getInventory().armor;
-        for (int i = 0; i < playerArmor.size(); i++) {
-            ItemStack stack = playerArmor.get(i);
-            items.put(36 + i, stack != null ? stack.copy(): ItemStack.EMPTY);
-        }
-
-        ItemStack stack = player.getInventory().offHand.get(0);
-        items.put(40, stack != null ? stack.copy(): ItemStack.EMPTY);
-        LOGGER.info(playerItems.size() + "");
-
-        System.out.println("Saving inventory for: " + invName);
-        for (Map.Entry<Integer, ItemStack> entry : items.entrySet()) {
-            System.out.println("Slot " + entry.getKey() + " = " + entry.getValue().getItem().toString());
+        for (int i = 0; i < player.getInventory().size(); i++) {
+            items.put(i, player.getInventory().getStack(i).copy());
         }
         savedInventories.put(invName, items);
         saveData();
-
-
-        LOGGER.info("Saved inventory (" + invName + ") successfully.");
         player.playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP);
-        player.sendMessage(
-                Text.literal("[SI] ")
-                .setStyle(Style.EMPTY.withColor((239 << 16) | (177 << 8) | 60))
-
-                .append(Text.literal("You have saved your inventory as ")
-                .styled(style -> style.withColor(Formatting.GREEN))
-                .append(Text.literal(invName).styled(style -> style.withColor(Formatting.AQUA)))));
+        player.sendMessage(Text.literal("[SI] ")
+                .setStyle(Style.EMPTY.withColor(0xEFB13C))
+                .append(Text.literal("Saved inventory as ")
+                        .styled(s -> s.withColor(Formatting.GREEN))
+                        .append(Text.literal(invName).styled(s -> s.withColor(Formatting.AQUA)))));
     }
 
     public static void removeInventory(ClientPlayerEntity player, String invName) {
-        if (savedInventories.containsKey(invName) && player != null) {
-            savedInventories.remove(invName);
+        if (savedInventories.remove(invName) != null) {
             saveData();
-
-
-            LOGGER.info("Removed inventory (" + invName + ") successfully.");
             player.playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP);
-            player.sendMessage(
-                    Text.literal("[SI] ")
-                    .setStyle(Style.EMPTY.withColor((239 << 16) | (177 << 8) | 60))
-
-                    .append(Text.literal("You have removed your inventory called ")
-                    .styled(style -> style.withColor(Formatting.GREEN))
-                    .append(Text.literal(invName).styled(style -> style.withColor(Formatting.AQUA)))));
+            player.sendMessage(Text.literal("[SI] ")
+                    .setStyle(Style.EMPTY.withColor(0xEFB13C))
+                    .append(Text.literal("Removed inventory called ")
+                            .styled(s -> s.withColor(Formatting.GREEN))
+                            .append(Text.literal(invName).styled(s -> s.withColor(Formatting.AQUA)))));
         } else {
-            LOGGER.info("Removed inventory (" + invName + ") unsuccessfully. (no inventory named " + invName + ")");
-            if (player != null) {
-                player.playSound(SoundEvents.ENTITY_VILLAGER_HURT);
-                player.sendMessage(
-                    Text.literal("[SI] ")
-                    .setStyle(Style.EMPTY.withColor((239 << 16) | (177 << 8) | 60))
-
-                    .append(Text.literal("You do not have an inventory called ")
-                    .styled(style -> style.withColor(Formatting.RED))
-                    .append(Text.literal(invName).styled(style -> style.withColor(Formatting.AQUA)))));
-            }
+            player.playSound(SoundEvents.ENTITY_VILLAGER_HURT);
+            player.sendMessage(Text.literal("[SI] ")
+                    .setStyle(Style.EMPTY.withColor(0xEFB13C))
+                    .append(Text.literal("No inventory named ")
+                            .styled(s -> s.withColor(Formatting.RED))
+                            .append(Text.literal(invName).styled(s -> s.withColor(Formatting.AQUA)))));
         }
     }
 
-    public static void loadInventory(ClientPlayerEntity player, String invName) {
-        if (player == null || !savedInventories.containsKey(invName)) {
+    public static void loadInventory(String invName) {
+        loadData();
+        ClientPlayerEntity player = SaveInventory.getPlayer();
+        if (player == null) return;
 
-            LOGGER.info("Loaded inventory (" + invName + ") unsuccessfully. (no inventory named " + invName + ")");
-            if (player != null) {
-                player.playSound(SoundEvents.ENTITY_VILLAGER_HURT);
-                player.sendMessage(
-                    Text.literal("[SI] ")
-                    .setStyle(Style.EMPTY.withColor((239 << 16) | (177 << 8) | 60))
-
-                    .append(Text.literal("You do not have an inventory called ")
-                    .styled(style -> style.withColor(Formatting.RED))
-                    .append(Text.literal(invName).styled(style -> style.withColor(Formatting.AQUA)))));
-            }
+        if (!savedInventories.containsKey(invName)) {
+            player.sendMessage(Text.literal("[SI] Inventory '")
+                    .styled(s -> s.withColor(Formatting.RED))
+                    .append(Text.literal(invName).styled(s -> s.withColor(Formatting.AQUA)))
+                    .append(Text.literal("' not found.")));
             return;
         }
 
-        HashMap<Integer, ItemStack> saved = savedInventories.get(invName);
+        HashMap<Integer, ItemStack> desiredMap = savedInventories.get(invName);
+        ScreenHandler handler = player.playerScreenHandler;
+        ClientPlayNetworkHandler net = MinecraftClient.getInstance().getNetworkHandler();
+        int syncId = handler.syncId;
 
-        DefaultedList<ItemStack> playerItems = player.getInventory().main;
-        for (int i = 0; i < playerItems.size(); i++) {
-            ItemStack savedStack = saved.get(i);
-            playerItems.set(i, savedStack != null ? savedStack.copy() : ItemStack.EMPTY);
+        Map<Integer, Slot> slotByIndex = new HashMap<>();
+        Map<Integer, ItemStack> currentStacks = new HashMap<>();
+        for (Slot slot : handler.slots) {
+            if (slot.inventory != player.getInventory()) continue;
+            int idx = slot.getIndex();
+            slotByIndex.put(idx, slot);
+            currentStacks.put(idx, slot.getStack().copy());
         }
 
-        DefaultedList<ItemStack> playerArmor = player.getInventory().armor;
-        for (int i = 0; i < playerArmor.size(); i++) {
-            ItemStack savedStack = saved.get(i + 36);
-            playerArmor.set(i, savedStack != null ? savedStack.copy(): ItemStack.EMPTY);
+        for (Map.Entry<Integer, ItemStack> entry : desiredMap.entrySet()) {
+            int targetIdx = entry.getKey();
+            ItemStack want = entry.getValue();
+            if (want.isEmpty()) continue;
+
+            ItemStack haveHere = currentStacks.getOrDefault(targetIdx, ItemStack.EMPTY);
+            if (haveHere.getItem().equals(want.getItem()) && haveHere.getCount() == want.getCount()) {
+                SaveInventory.LOGGER.info("Slot " + targetIdx + " already has desired, skipping.");
+                continue;
+            }
+
+            Integer sourceIdx = null;
+            for (Map.Entry<Integer, ItemStack> e2 : currentStacks.entrySet()) {
+                int idx2 = e2.getKey();
+                ItemStack st = e2.getValue();
+                if (!st.isEmpty() && st.getItem().equals(want.getItem()) && st.getCount() == want.getCount()) {
+                    sourceIdx = idx2;
+                    break;
+                }
+            }
+            if (sourceIdx == null) {
+                SaveInventory.LOGGER.info("Desired " + want + " not found; leaving slot " + targetIdx + " empty.");
+                continue;
+            }
+
+            Slot sourceSlot = slotByIndex.get(sourceIdx);
+            Slot targetSlot = slotByIndex.get(targetIdx);
+            SaveInventory.LOGGER.info("Swapping " + want + " from slot " + sourceIdx + " to slot " + targetIdx);
+
+            int a1 = handler.nextRevision();
+            net.sendPacket(new ClickSlotC2SPacket(syncId, a1, sourceSlot.id, 0, SlotActionType.PICKUP, ItemStack.EMPTY, Int2ObjectMaps.emptyMap()));
+            int a2 = handler.nextRevision();
+            net.sendPacket(new ClickSlotC2SPacket(syncId, a2, targetSlot.id, 0, SlotActionType.PICKUP, ItemStack.EMPTY, Int2ObjectMaps.emptyMap()));
+            int a3 = handler.nextRevision();
+            net.sendPacket(new ClickSlotC2SPacket(syncId, a3, sourceSlot.id, 0, SlotActionType.PICKUP, ItemStack.EMPTY, Int2ObjectMaps.emptyMap()));
+
+            currentStacks.put(sourceIdx, haveHere);
+            currentStacks.put(targetIdx, want.copy());
         }
 
-        ItemStack savedStack = saved.get(40);
-        player.getInventory().offHand.set(0, savedStack != null ? savedStack.copy(): ItemStack.EMPTY);
+        List<Integer> emptyTargets = new ArrayList<>();
+        for (int i = 0; i < player.getInventory().size(); i++) {
+            if (desiredMap.getOrDefault(i, ItemStack.EMPTY).isEmpty() &&
+                    currentStacks.getOrDefault(i, ItemStack.EMPTY).isEmpty()) {
+                emptyTargets.add(i);
+            }
+        }
 
-        LOGGER.info("Loaded inventory (" + invName + ") successfully.");
+        for (Map.Entry<Integer, ItemStack> e : new ArrayList<>(currentStacks.entrySet())) {
+            int idx = e.getKey();
+            ItemStack st = e.getValue();
+            if (st.isEmpty()) continue;
+            if (desiredMap.getOrDefault(idx, ItemStack.EMPTY).isEmpty()) {
+                if (emptyTargets.isEmpty()) break;
+                int destIdx = emptyTargets.remove(0);
+                if (destIdx == idx) continue;
+
+                Slot sourceSlot = slotByIndex.get(idx);
+                Slot destSlot = slotByIndex.get(destIdx);
+                SaveInventory.LOGGER.info("Moving extra " + st + " from slot " + idx + " to empty slot " + destIdx);
+                int b1 = handler.nextRevision();
+                net.sendPacket(new ClickSlotC2SPacket(syncId, b1, sourceSlot.id, 0, SlotActionType.PICKUP, ItemStack.EMPTY, Int2ObjectMaps.emptyMap()));
+                int b2 = handler.nextRevision();
+                net.sendPacket(new ClickSlotC2SPacket(syncId, b2, destSlot.id, 0, SlotActionType.PICKUP, ItemStack.EMPTY, Int2ObjectMaps.emptyMap()));
+
+                currentStacks.put(idx, ItemStack.EMPTY);
+                currentStacks.put(destIdx, st.copy());
+            }
+        }
+
+        handler.sendContentUpdates();
         player.playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP);
-        player.sendMessage(
-                Text.literal("[SI] ")
-                .setStyle(Style.EMPTY.withColor((239 << 16) | (177 << 8) | 60))
-
-                .append(Text.literal("Inventory loaded: ")
-                .styled(style -> style.withColor(Formatting.GREEN))
-                .append(Text.literal(invName).styled(style -> style.withColor(Formatting.AQUA)))));
+        player.sendMessage(Text.literal("[SI] ")
+                .setStyle(Style.EMPTY.withColor(0xEFB13C))
+                .append(Text.literal("Inventory organized: ")
+                        .styled(s -> s.withColor(Formatting.GREEN))
+                        .append(Text.literal(invName).styled(s -> s.withColor(Formatting.AQUA)))));
     }
 
-    public static Set<String> getInventories(ClientPlayerEntity player) {
+    public static Set<String> getInventories() {
         return savedInventories.keySet();
     }
-
-    //in future, make a show inventory (name)
-    //it will make a mini gui of your inventory, like a chest with all your items in it
 }
