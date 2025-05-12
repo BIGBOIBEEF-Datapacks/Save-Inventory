@@ -127,7 +127,7 @@ public class SavedInventories {
 
             ItemStack haveHere = currentStacks.getOrDefault(targetIdx, ItemStack.EMPTY);
             if (haveHere.getItem().equals(want.getItem()) && haveHere.getCount() == want.getCount()) {
-                SaveInventory.LOGGER.info("Slot " + targetIdx + " already has desired, skipping.");
+                //SaveInventory.LOGGER.info("Slot " + targetIdx + " already has desired, skipping.");
                 continue;
             }
 
@@ -141,13 +141,13 @@ public class SavedInventories {
                 }
             }
             if (sourceIdx == null) {
-                SaveInventory.LOGGER.info("Desired " + want + " not found; leaving slot " + targetIdx + " empty.");
+                //SaveInventory.LOGGER.info("Desired " + want + " not found; leaving slot " + targetIdx + " empty.");
                 continue;
             }
 
             Slot sourceSlot = slotByIndex.get(sourceIdx);
             Slot targetSlot = slotByIndex.get(targetIdx);
-            SaveInventory.LOGGER.info("Swapping " + want + " from slot " + sourceIdx + " to slot " + targetIdx);
+            //SaveInventory.LOGGER.info("Swapping " + want + " from slot " + sourceIdx + " to slot " + targetIdx);
 
             int a1 = handler.nextRevision();
             net.sendPacket(new ClickSlotC2SPacket(syncId, a1, sourceSlot.id, 0, SlotActionType.PICKUP, ItemStack.EMPTY, Int2ObjectMaps.emptyMap()));
@@ -179,7 +179,7 @@ public class SavedInventories {
 
                 Slot sourceSlot = slotByIndex.get(idx);
                 Slot destSlot = slotByIndex.get(destIdx);
-                SaveInventory.LOGGER.info("Moving extra " + st + " from slot " + idx + " to empty slot " + destIdx);
+                //SaveInventory.LOGGER.info("Moving extra " + st + " from slot " + idx + " to empty slot " + destIdx);
                 int b1 = handler.nextRevision();
                 net.sendPacket(new ClickSlotC2SPacket(syncId, b1, sourceSlot.id, 0, SlotActionType.PICKUP, ItemStack.EMPTY, Int2ObjectMaps.emptyMap()));
                 int b2 = handler.nextRevision();
@@ -192,7 +192,7 @@ public class SavedInventories {
 
         handler.sendContentUpdates();
         player.playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP);
-        player.sendMessage(Text.literal("[SI] ")
+            player.sendMessage(Text.literal("[SI] ")
                 .setStyle(Style.EMPTY.withColor(0xEFB13C))
                 .append(Text.literal("Inventory organized: ")
                         .styled(s -> s.withColor(Formatting.GREEN))
@@ -200,6 +200,7 @@ public class SavedInventories {
     }
 
     public static Set<String> getInventories() {
+        loadData();
         return savedInventories.keySet();
     }
 }

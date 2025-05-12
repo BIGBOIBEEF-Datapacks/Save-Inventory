@@ -18,7 +18,9 @@ public class SaveInventoryCommand {
                                     .suggests((context, builder) -> {
                                         ClientPlayerEntity player = getPlayer();
                                         if (player != null) {
+                                            String typed = context.getInput().substring(context.getInput().lastIndexOf(' ') + 1).toLowerCase();
                                             for (String name : SavedInventories.getInventories()) {
+                                                if (name.toLowerCase().startsWith(typed))
                                                 builder.suggest(name);
                                             }
                                         }
